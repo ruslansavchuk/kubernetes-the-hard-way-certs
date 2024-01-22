@@ -1,75 +1,15 @@
-# Конфігурація ETCD
+# ETCD
 
-Стан всього кластера кубернетес зберігається у базі данних. В переважній більшості "дистрибутивів" в якості такої використовується [etcd](https://github.com/etcd-io/etcd). Саме тому при конфігурації кластера все починається із etcd.
+In this section we will set up ETCD cluster and generate certificates for communication inside ETCD cluster and between ETCD cluster and clients (in our case it is api server). 
 
-## Трохи при нашу інсталяцію
+## Generate ETCD peer certificates
 
-Etcd є розподіленою ключ-значенняю системою зберігання даних, яка використовується для керування конфігурацією, координації та інших задач у розподілених системах. Розроблена компанією CoreOS.
+To configure secure communication between ETCD nodes, we need to generate certificates. The certificates generated should be signed with the usage of peer ca file. 
 
-Звісно дуже просто можна "підняти" базу данних etcd з 1-ю нодою в докері (приклад можна знайти наприклад [тут](https://etcd.io/docs/v2.3/docker_guide/)). Але для того щоб хоч трохи розібратись із "тонкостями" роботи, ми підемо трохи іншим шляхом.
-
-В рамках даної лабораторної роботи ми розгорнемо кластер etcd з 3 нод. Вся комунікація у відконфігурованому кластері буде відбуватись тільки по зашифрованих каналах.
-
-## Схема комунікації у кластері
-
-Для початку нам потрібно розібратись хто і з ким збирається комунікавути, і що нам потрібно для того щоб зробити комунікацію безпечною (мається на увазі які сертифікати нам потрібні для того щоб досягнути таких цілей).
-
-Як видно із картинки вище, є кілька принципово відмінних каналів комунікації:
-
-1. Комунікація мід нодами кластеру
-2. Комунікація між клієнтом і кластером
-
-На щастя в etcd є широкі можливості для того щоб зробити вся комунікацію безпечною (більш детільно [тут](https://etcd.io/docs/v3.4/op-guide/security/)). Якщо коротко, то вся комунікація в кластері буде відбуватись із використанням TLS сертифікатів які ми згенеруємо самі. При при комунікації, буде також перевірятись і те чи правильним [ca](https://en.wikipedia.org/wiki/Certificate_authority) сертифікатом підписаний сертифікат який використовується.
-
-### Комунікація між нодами кластеру
-
-Як можна бачити з картинки вище, вся комунцікая мід нодами нашого кластеру буде відбуватись через порти 2380 спеціально відконфігуровані для цього на кожній ноді etcd (тут власне ніякоє оригінальності). Більш цікавим (і відмінним від того що  я бачив ранцше) є те, що ми будемо генерувати окремі сертифікати для комунікації між нодами, прицьому вони будуть підписані своїм власним ca сертифікатом.
-
-### Комунікація між клієнтом та кластером
-
-Для комунікації з клієнтами кластеру, ми будемо використовувати порт 2379. І знову ж таки, для того щоб зробити комунікацію безпечною ми згенеруємо окремі сертифікати підписані власним ca сертифікатом (в даному випадку ми будемо використовувати окремі сертифікати як для клаєнта так і для кластеру).
-
-
-## Генерація сертифікатів
-
-на даному етапі варто приєднатись до manage ноди так як ми почнемо уже генерувати необхідні нам сертифікати і розповсяджувати їх на всі інші машини.
-
-Це можна зробити виконавши команду
-```bash
-{
-  wget -q --show-progress --https-only --timestamping \
-    https://github.com/cloudflare/cfssl/releases/download/v1.4.1/cfssl_1.4.1_linux_amd64 \
-    https://github.com/cloudflare/cfssl/releases/download/v1.4.1/cfssljson_1.4.1_linux_amd64
-
-  mv cfssl_1.4.1_linux_amd64 cfssl
-  mv cfssljson_1.4.1_linux_amd64 cfssljson
-  chmod +x cfssl cfssljson
-  sudo mv cfssl cfssljson /usr/local/bin/
-}  
-```
-
-### Сертифікати для комунікації між нодами кластеру
-
-Почати звісно потрібно із того що ми згенеруємо ca сертифікат з використанням якого ми будемо генерувати всі наступні сертифікати потрібні для комунікації між нодами
+Generate peer ca file
 
 ```bash
 {
-cat > etcd-ca-peer-config.json <<EOF
-{
-  "signing": {
-    "default": {
-      "expiry": "8760h"
-    },
-    "profiles": {
-      "etcd-peer": {
-        "usages": ["signing", "key encipherment", "server auth", "client auth"],
-        "expiry": "8760h"
-      }
-    }
-  }
-}
-EOF
-
 cat > etcd-ca-peer-csr.json <<EOF
 {
   "CN": "etcd-peer",
@@ -93,14 +33,33 @@ cfssl gencert -initca etcd-ca-peer-csr.json | cfssljson -bare etcd-ca-peer
 }
 ```
 
-Результат:
+Generated filed:
 ```
 etcd-ca-peer-key.pem
 etcd-ca-peer.csr
 etcd-ca-peer.pem
 ```
 
-Тепер ми згереруємо сертифікати для комунікації між нодами кластеру
+Generate config for signing certificates using generated ca certificate
+```bash
+cat > etcd-ca-peer-config.json <<EOF
+{
+  "signing": {
+    "default": {
+      "expiry": "8760h"
+    },
+    "profiles": {
+      "etcd-peer": {
+        "usages": ["signing", "key encipherment", "server auth", "client auth"],
+        "expiry": "8760h"
+      }
+    }
+  }
+}
+EOF
+```
+
+Now generate certificate for comminication between etcd nodes
 
 ```bash
 {
@@ -133,35 +92,19 @@ cfssl gencert \
 }
 ```
 
-Результат:
+Generated files:
 ```
 etcd-peer-key.pem
 etcd-peer.csr
 etcd-peer.pem
 ```
 
-### Сертифікати для комунікації між клієнтом і кластером
+## Generate ETCD client certificates
 
-Як і на попередньому кроці, почнемо ми звісно із ca сертифікату
+To configure secure comminucation between ETCD cluster and clients (in our case api-server) we will generate one more ca certificate and certificates for client and etcd server. In etcd this ca and cert file can be different from the certificates used inside etcd cluster.
 
 ```bash
 {
-cat > etcd-ca-cluster-to-client-config.json <<EOF
-{
-  "signing": {
-    "default": {
-      "expiry": "8760h"
-    },
-    "profiles": {
-      "etcd-cluster-to-client": {
-        "usages": ["signing", "key encipherment", "server auth", "client auth"],
-        "expiry": "8760h"
-      }
-    }
-  }
-}
-EOF
-
 cat > etcd-ca-cluster-to-client-csr.json <<EOF
 {
   "CN": "etcd-cluster-to-client",
@@ -185,14 +128,35 @@ cfssl gencert -initca etcd-ca-cluster-to-client-csr.json | cfssljson -bare etcd-
 }
 ```
 
-Результат:
+Generated files:
 ```
 etcd-ca-cluster-to-client-key.pem
 etcd-ca-cluster-to-client.csr
 etcd-ca-cluster-to-client.pem
 ```
 
-Тепер згенеруємо сертифікати як буде використовувати сервер для комунікації з клієнтами
+Generate config for signing server-to-client certificates
+```bash
+cat > etcd-ca-cluster-to-client-config.json <<EOF
+{
+  "signing": {
+    "default": {
+      "expiry": "8760h"
+    },
+    "profiles": {
+      "etcd-cluster-to-client": {
+        "usages": ["signing", "key encipherment", "server auth", "client auth"],
+        "expiry": "8760h"
+      }
+    }
+  }
+}
+EOF
+```
+
+
+Generate certificate which will be used by the server to communicate with clients
+
 ```bash
 {
 cat > etcd-cluster-to-client-server-csr.json <<EOF
@@ -224,14 +188,15 @@ cfssl gencert \
 }
 ```
 
-Результат:
+Generated files:
 ```
 etcd-cluster-to-client-server-key.pem
 etcd-cluster-to-client-server.csr
 etcd-cluster-to-client-server.pem
 ```
 
-А тепер клієнтський сертифікат для з'єднання із сервером
+Similar for the client
+
 ```bash
 {
 cat > etcd-cluster-to-client-client-csr.json <<EOF
@@ -263,35 +228,34 @@ cfssl gencert \
 }
 ```
 
-Результат:
+Generated files:
 ```
 etcd-cluster-to-client-client-key.pem
 etcd-cluster-to-client-client.csr
 etcd-cluster-to-client-client.pem
 ```
 
-## Налаштування кластеру etcd
+## Configure ETCD cluster
 
-Тепер прийшов час відконфігурувати всі ноди кластеру etcd.
-> так як всі пожальші команди потрібно буде виконати на кожній ноді, рекомендується використати для цього tmux (який уже встановлений у manage контейнері на якому ми генерували всі команди) який дає можливість виконувати команди паралельно у кількох відкритих табах (деталі можна знайти [тут](http://man.openbsd.org/OpenBSD-current/man1/tmux.1#synchronize-panes))
-> :setw synchronize-panes on
+Now, we will set-up ETCD cluster.
 
-Завантажимо etcd
-```
+First of all, we need to download binaries of our ETCD service.
+```bash
 wget -q --show-progress --https-only --timestamping \
   "https://github.com/etcd-io/etcd/releases/download/v3.4.15/etcd-v3.4.15-linux-amd64.tar.gz"
 ```
 
-Розпакувати і помістити etcd у диреторію /usr/local/bin/
-```
+Un-tar and move to the proper directory
+```bash
 {
   tar -xvf etcd-v3.4.15-linux-amd64.tar.gz
   sudo mv etcd-v3.4.15-linux-amd64/etcd* /usr/local/bin/
 }
 ```
 
-Скопіюємо раніше згенеровані (і перенесені на ноду) сертифікати у директорію etcd
-```
+Distribute generated server-to-client and peer-to-peer certificates
+
+```bash
 {
   sudo mkdir -p /etc/etcd1 /var/lib/etcd1
   sudo mkdir -p /etc/etcd2 /var/lib/etcd2
@@ -304,34 +268,26 @@ wget -q --show-progress --https-only --timestamping \
   sudo cp etcd-ca-peer.pem \
     etcd-ca-cluster-to-client.pem \
     etcd-cluster-to-client-server.pem etcd-cluster-to-client-server-key.pem \
-    etcd-cluster-to-client-client.pem etcd-cluster-to-client-client-key.pem \
     etcd-peer.pem etcd-peer-key.pem \
     /etc/etcd1/
 
   sudo cp etcd-ca-peer.pem \
     etcd-ca-cluster-to-client.pem \
     etcd-cluster-to-client-server.pem etcd-cluster-to-client-server-key.pem \
-    etcd-cluster-to-client-client.pem etcd-cluster-to-client-client-key.pem \
     etcd-peer.pem etcd-peer-key.pem \
     /etc/etcd2/
 
   sudo cp etcd-ca-peer.pem \
     etcd-ca-cluster-to-client.pem \
     etcd-cluster-to-client-server.pem etcd-cluster-to-client-server-key.pem \
-    etcd-cluster-to-client-client.pem etcd-cluster-to-client-client-key.pem \
     etcd-peer.pem etcd-peer-key.pem \
     /etc/etcd3/
 }
 ```
 
-Тепер нам потрібно отримати айпі адресу ноди
-```
-apt-get install dnsutils -y
-INTERNAL_IP=$(dig +short $ETCD_NAME | head -n 1)
-```
-
-Створити `etcd1.service` юніт файл для нашого etcd кластеру (їх має бути 3 штуки)
-```
+Create ETCD service units
+```bash
+{
 cat <<EOF | sudo tee /etc/systemd/system/etcd1.service
 [Unit]
 Description=etcd1
@@ -363,10 +319,7 @@ RestartSec=5
 [Install]
 WantedBy=multi-user.target
 EOF
-```
 
-Створити `etcd2.service` юніт файл для нашого etcd кластеру (їх має бути 3 штуки)
-```
 cat <<EOF | sudo tee /etc/systemd/system/etcd2.service
 [Unit]
 Description=etcd2
@@ -398,10 +351,7 @@ RestartSec=5
 [Install]
 WantedBy=multi-user.target
 EOF
-```
 
-Створити `etcd3.service` юніт файл для нашого etcd кластеру (їх має бути 3 штуки)
-```
 cat <<EOF | sudo tee /etc/systemd/system/etcd3.service
 [Unit]
 Description=etcd3
@@ -433,24 +383,21 @@ RestartSec=5
 [Install]
 WantedBy=multi-user.target
 EOF
-```
-
-Тепер нам потрібно заставити його "піднятись"
-```
-{
-  systemctl enable etcd1
-  systemctl start etcd1
-  systemctl enable etcd2
-  systemctl start etcd2
-  systemctl enable etcd3
-  systemctl start etcd3
 }
 ```
 
-## Перевірка
-
-Отримаємо спосок "мембурів" etcd кластеру
+And start etcd cluster
+```bash
+{
+  systemctl enable etcd1 etcd2 etcd3
+  systemctl start etcd1 etcd2 etcd3
+}
 ```
+
+## Verify
+
+Get the list of etcd cluster members
+```bash
 sudo ETCDCTL_API=3 etcdctl member list \
   --endpoints=https://127.0.0.1:2379 \
   --cacert=etcd-ca-cluster-to-client.pem \
@@ -458,11 +405,11 @@ sudo ETCDCTL_API=3 etcdctl member list \
   --key=etcd-cluster-to-client-client-key.pem
 ```
 
-Результат: 
+Result: 
 ```
 3a57933972cb5131, started, controller-2, https://10.240.0.12:2380, https://10.240.0.12:2379, false
 f98dc20bce6225a0, started, controller-0, https://10.240.0.10:2380, https://10.240.0.10:2379, false
 ffed16798470cab5, started, controller-1, https://10.240.0.11:2380, https://10.240.0.11:2379, false
 ```
 
-Далі: [Конфігуруємо апі сервер](04-kube-apiserver.md) 
+Next: [Configure API server](02-api-server.md   ) 
