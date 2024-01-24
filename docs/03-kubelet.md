@@ -216,7 +216,7 @@ cfssl gencert \
   -ca=kubernetes-ca-kubelet.pem \
   -ca-key=kubernetes-ca-kubelet-key.pem \
   -config=kubernetes-ca-kubelet-config.json \
-  -hostname=127.0.0.1 \
+  -hostname=127.0.0.1,${HOST_NAME} \
   -profile=kubernetes-kubelet \
   kubelet-from-api-server-csr.json | cfssljson -bare kubelet-from-api-server
 }
@@ -305,7 +305,7 @@ ExecStart=/usr/local/bin/kubelet \\
   --image-pull-progress-deadline=2m \\
   --kubeconfig=/var/lib/kubelet/kubeconfig \\
   --network-plugin=cni \\
-  --register-node=true
+  --register-node=true \\
   --v=2
 Restart=on-failure
 RestartSec=5

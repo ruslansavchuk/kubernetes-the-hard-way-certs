@@ -4,52 +4,52 @@
 {
 cat > kube-scheduler-csr.json <<EOF
 {
-  "CN": "system:kube-scheduler",
-  "key": {
-    "algo": "rsa",
-    "size": 2048
-  },
-  "names": [
-    {
-      "C": "US",
-      "L": "Portland",
-      "O": "system:kube-scheduler",
-      "OU": "Kubernetes The Hard Way",
-      "ST": "Oregon"
-    }
-  ]
+  "CN": "system:kube-scheduler",
+  "key": {
+    "algo": "rsa",
+    "size": 2048
+  },
+  "names": [
+    {
+      "C": "US",
+      "L": "Portland",
+      "O": "system:kube-scheduler",
+      "OU": "Kubernetes The Hard Way",
+      "ST": "Oregon"
+    }
+  ]
 }
 EOF
 
 cfssl gencert \
-  -ca=ca.pem \
-  -ca-key=ca-key.pem \
-  -config=ca-config.json \
-  -profile=kubernetes \
-  kube-scheduler-csr.json | cfssljson -bare kube-scheduler
+  -ca=kubernetes-ca-api.pem \
+  -ca-key=kubernetes-ca-api-key.pem \
+  -config=kubernetes-ca-api-config.json \
+  -profile=kubernetes-api \
+  kube-scheduler-csr.json | cfssljson -bare kube-scheduler
 }
 ```
 
 ```bash
 {
-  kubectl config set-cluster kubernetes-the-hard-way \
-    --certificate-authority=ca.pem \
-    --embed-certs=true \
-    --server=https://127.0.0.1:6443 \
-    --kubeconfig=kube-scheduler.kubeconfig
+  kubectl config set-cluster kubernetes-the-hard-way \
+    --certificate-authority=kubernetes-ca-api.pem \
+    --embed-certs=true \
+    --server=https://127.0.0.1:6443 \
+    --kubeconfig=kube-scheduler.kubeconfig
 
-  kubectl config set-credentials system:kube-scheduler \
-    --client-certificate=kube-scheduler.pem \
-    --client-key=kube-scheduler-key.pem \
-    --embed-certs=true \
-    --kubeconfig=kube-scheduler.kubeconfig
+  kubectl config set-credentials system:kube-scheduler \
+    --client-certificate=kube-scheduler.pem \
+    --client-key=kube-scheduler-key.pem \
+    --embed-certs=true \
+    --kubeconfig=kube-scheduler.kubeconfig
 
-  kubectl config set-context default \
-    --cluster=kubernetes-the-hard-way \
-    --user=system:kube-scheduler \
-    --kubeconfig=kube-scheduler.kubeconfig
+  kubectl config set-context default \
+    --cluster=kubernetes-the-hard-way \
+    --user=system:kube-scheduler \
+    --kubeconfig=kube-scheduler.kubeconfig
 
-  kubectl config use-context default --kubeconfig=kube-scheduler.kubeconfig
+  kubectl config use-context default --kubeconfig=kube-scheduler.kubeconfig
 }
 ```
 
@@ -60,8 +60,8 @@ wget -q --show-progress --https-only --timestamping \
 
 ```bash
 {
-  chmod +x kube-scheduler
-  sudo mv kube-scheduler /usr/local/bin/
+  chmod +x kube-scheduler
+  sudo mv kube-scheduler /usr/local/bin/
 }
 ```
 
@@ -74,9 +74,9 @@ cat <<EOF | sudo tee /etc/kubernetes/config/kube-scheduler.yaml
 apiVersion: kubescheduler.config.k8s.io/v1beta1
 kind: KubeSchedulerConfiguration
 clientConnection:
-  kubeconfig: "/var/lib/kubernetes/kube-scheduler.kubeconfig"
+  kubeconfig: "/var/lib/kubernetes/kube-scheduler.kubeconfig"
 leaderElection:
-  leaderElect: true
+  leaderElect: true
 EOF
 ```
 
@@ -88,8 +88,8 @@ Documentation=https://github.com/kubernetes/kubernetes
 
 [Service]
 ExecStart=/usr/local/bin/kube-scheduler \\
-  --config=/etc/kubernetes/config/kube-scheduler.yaml \\
-  --v=2
+  --config=/etc/kubernetes/config/kube-scheduler.yaml \\
+  --v=2
 Restart=on-failure
 RestartSec=5
 
@@ -100,9 +100,9 @@ EOF
 
 ```bash
 {
-  sudo systemctl daemon-reload
-  sudo systemctl enable kube-scheduler
-  sudo systemctl start kube-scheduler
+  sudo systemctl daemon-reload
+  sudo systemctl enable kube-scheduler
+  sudo systemctl start kube-scheduler
 }
 ```
 
