@@ -333,4 +333,25 @@ sudo systemctl status kubelet
 kubectl get nodes --kubeconfig=admin.kubeconfig
 ```
 
+```bash
+{
+cat <<EOF> node-auth.yml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: node-proxy-access-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:kubelet-api-admin
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: User
+  name: kubernetes
+EOF
+
+kubectl apply -f node-auth.yml --kubeconfig=admin.kubeconfig
+}
+```
+
 Next: [Controller manager](04-controller-manager.md)

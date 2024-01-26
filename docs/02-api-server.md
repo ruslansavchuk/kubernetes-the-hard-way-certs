@@ -11,7 +11,7 @@ something about api server configuration
 {
 cat > kubernetes-ca-api-csr.json <<EOF
 {
-  "CN": "kubernetes-api",
+    "CN": "kubernetes-api",
   "key": {
     "algo": "rsa",
     "size": 2048
@@ -313,6 +313,9 @@ The instance internal IP address will be used to advertise the API Server to mem
 Create the `kube-apiserver.service` systemd unit file:
 
 ```bash
+{
+ADD_IP=$(ip a | awk '/inet / && $2 !~ /^127\./ {print $2}' | cut -d '/' -f 1)
+
 cat <<EOF | sudo tee /etc/systemd/system/kube-apiserver.service
 [Unit]
 Description=Kubernetes API Server
@@ -320,7 +323,7 @@ Documentation=https://github.com/kubernetes/kubernetes
 
 [Service]
 ExecStart=/usr/local/bin/kube-apiserver \\
-  --advertise-address='127.0.0.1' \\
+  --advertise-address=${ADD_IP} \\
   --allow-privileged='true' \\
   --apiserver-count='3' \\
   --audit-log-maxage='30' \\
@@ -356,14 +359,16 @@ RestartSec=5
 [Install]
 WantedBy=multi-user.target
 EOF
+}
 ```
 
 > --service-account-key-file - дуже цікава опція, потрібно для того щоб перевіряти токени які видає сам кубернетес для того щоб прокидати їх у поди для того щоб вони в подальшому могли ті токени викоритовувати (поки не особо ясно яким ca сертифікатом підписувати цей сертифікат)
 
 ```bash
 {
-  systemctl enable kube-apiserver
-  systemctl start kube-apiserver
+  sudo systemctl daemon-reload
+  sudo systemctl enable kube-apiserver
+  sudo systemctl start kube-apiserver
 }
 ```
 
