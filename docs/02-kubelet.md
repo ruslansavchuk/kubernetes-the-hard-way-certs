@@ -354,4 +354,4 @@ kubectl apply -f node-auth.yml --kubeconfig=admin.kubeconfig
 }
 ```
 
-Next: [Controller manager](04-controller-manager.md)
+Next: [Controller manager](03-controller-manager.md)

@@ -1,12 +1,18 @@
 # ETCD
 
-In this section we will set up ETCD cluster and generate certificates for communication inside ETCD cluster and between ETCD cluster and clients (in our case it is api server). 
+In this segment, we'll establish an ETCD cluster. Our cluster will consist of 3 nodes, with communication between clients and nodes secured through the use of two types of certificates:
+- Certificates for inter-node communication within the cluster
+- Certificates for communication between the cluster and clients
+
+### Cluster configuration
+
+ETCD can operate as a single server or as a cluster. Since our objective is to explore the certificates utilized in a Kubernetes cluster, we will configure ETCD in cluster mode. This approach enables us to observe how communication between ETCD cluster nodes is secured.
 
 ## Generate ETCD peer certificates
 
-To configure secure communication between ETCD nodes, we need to generate certificates. The certificates generated should be signed with the usage of peer ca file. 
+As already mentioned, we will set up secure communication between cluster nodes. To achieve this, we will generate a certificate authority certificate. This certificate will be utilized for signing the certificates intended for use by ETCD cluster nodes.
 
-Generate peer ca file
+To do that, execute
 
 ```bash
 {
@@ -35,8 +41,9 @@ cfssl gencert -initca etcd-ca-peer-csr.json | cfssljson -bare etcd-ca-peer
 
 Generated filed:
 ```
-etcd-ca-peer-key.pem
 etcd-ca-peer.csr
+etcd-ca-peer-csr.json
+etcd-ca-peer-key.pem
 etcd-ca-peer.pem
 ```
 
@@ -59,11 +66,11 @@ cat > etcd-ca-peer-config.json <<EOF
 EOF
 ```
 
-Now generate certificate for comminication between etcd nodes
-
+Now, after ca and signing config generated, we can generate certificates for communication between cluster nodes
 ```bash
 {
-cat > etcd-peer-csr.json <<EOF
+for instance in 1 2 3; do
+cat > etcd-peer-${instance}-csr.json <<EOF
 {
   "CN": "kubernetes",
   "key": {
@@ -88,20 +95,30 @@ cfssl gencert \
   -config=etcd-ca-peer-config.json \
   -hostname=127.0.0.1 \
   -profile=etcd-peer \
-  etcd-peer-csr.json | cfssljson -bare etcd-peer
+  etcd-peer-${instance}-csr.json | cfssljson -bare etcd-peer-${instance}
+done
 }
 ```
 
 Generated files:
 ```
-etcd-peer-key.pem
-etcd-peer.csr
-etcd-peer.pem
+etcd-peer-1.csr
+etcd-peer-1-csr.json
+etcd-peer-1-key.pem
+etcd-peer-1.pem
+etcd-peer-2.csr
+etcd-peer-2-csr.json
+etcd-peer-2-key.pem
+etcd-peer-2.pem
+etcd-peer-3.csr
+etcd-peer-3-csr.json
+etcd-peer-3-key.pem
+etcd-peer-3.pem
 ```
 
 ## Generate ETCD client certificates
 
-To configure secure comminucation between ETCD cluster and clients (in our case api-server) we will generate one more ca certificate and certificates for client and etcd server. In etcd this ca and cert file can be different from the certificates used inside etcd cluster.
+To configure secure communication between ETCD cluster and clients (in our case api-server) we will generate one more ca certificate and certificates for client and etcd server. In etcd this ca and cert file can be different from the certificates used inside etcd cluster.
 
 ```bash
 {
@@ -132,6 +149,7 @@ Generated files:
 ```
 etcd-ca-cluster-to-client-key.pem
 etcd-ca-cluster-to-client.csr
+etcd-ca-cluster-to-client-csr.json
 etcd-ca-cluster-to-client.pem
 ```
 
@@ -268,19 +286,19 @@ Distribute generated server-to-client and peer-to-peer certificates
   sudo cp etcd-ca-peer.pem \
     etcd-ca-cluster-to-client.pem \
     etcd-cluster-to-client-server.pem etcd-cluster-to-client-server-key.pem \
-    etcd-peer.pem etcd-peer-key.pem \
+    etcd-peer-1.pem etcd-peer-1-key.pem \
     /etc/etcd1/
 
   sudo cp etcd-ca-peer.pem \
     etcd-ca-cluster-to-client.pem \
     etcd-cluster-to-client-server.pem etcd-cluster-to-client-server-key.pem \
-    etcd-peer.pem etcd-peer-key.pem \
+    etcd-peer-2.pem etcd-peer-2-key.pem \
     /etc/etcd2/
 
   sudo cp etcd-ca-peer.pem \
     etcd-ca-cluster-to-client.pem \
     etcd-cluster-to-client-server.pem etcd-cluster-to-client-server-key.pem \
-    etcd-peer.pem etcd-peer-key.pem \
+    etcd-peer-3.pem etcd-peer-3-key.pem \
     /etc/etcd3/
 }
 ```
@@ -299,8 +317,8 @@ ExecStart=/usr/local/bin/etcd \\
   --name etcd1 \\
   --cert-file=/etc/etcd1/etcd-cluster-to-client-server.pem \\
   --key-file=/etc/etcd1/etcd-cluster-to-client-server-key.pem \\
-  --peer-cert-file=/etc/etcd1/etcd-peer.pem \\
-  --peer-key-file=/etc/etcd1/etcd-peer-key.pem \\
+  --peer-cert-file=/etc/etcd1/etcd-peer-1.pem \\
+  --peer-key-file=/etc/etcd1/etcd-peer-1-key.pem \\
   --trusted-ca-file=/etc/etcd1/etcd-ca-cluster-to-client.pem \\
   --peer-trusted-ca-file=/etc/etcd1/etcd-ca-peer.pem \\
   --peer-client-cert-auth \\
@@ -331,8 +349,8 @@ ExecStart=/usr/local/bin/etcd \\
   --name etcd2 \\
   --cert-file=/etc/etcd2/etcd-cluster-to-client-server.pem \\
   --key-file=/etc/etcd2/etcd-cluster-to-client-server-key.pem \\
-  --peer-cert-file=/etc/etcd2/etcd-peer.pem \\
-  --peer-key-file=/etc/etcd2/etcd-peer-key.pem \\
+  --peer-cert-file=/etc/etcd2/etcd-peer-2.pem \\
+  --peer-key-file=/etc/etcd2/etcd-peer-2-key.pem \\
   --trusted-ca-file=/etc/etcd2/etcd-ca-cluster-to-client.pem \\
   --peer-trusted-ca-file=/etc/etcd2/etcd-ca-peer.pem \\
   --peer-client-cert-auth \\
@@ -363,8 +381,8 @@ ExecStart=/usr/local/bin/etcd \\
   --name etcd3 \\
   --cert-file=/etc/etcd3/etcd-cluster-to-client-server.pem \\
   --key-file=/etc/etcd3/etcd-cluster-to-client-server-key.pem \\
-  --peer-cert-file=/etc/etcd3/etcd-peer.pem \\
-  --peer-key-file=/etc/etcd3/etcd-peer-key.pem \\
+  --peer-cert-file=/etc/etcd3/etcd-peer-3.pem \\
+  --peer-key-file=/etc/etcd3/etcd-peer-3-key.pem \\
   --trusted-ca-file=/etc/etcd3/etcd-ca-cluster-to-client.pem \\
   --peer-trusted-ca-file=/etc/etcd3/etcd-ca-peer.pem \\
   --peer-client-cert-auth \\
@@ -412,4 +430,4 @@ f98dc20bce6225a0, started, controller-0, https://10.240.0.10:2380, https://10.24
 ffed16798470cab5, started, controller-1, https://10.240.0.11:2380, https://10.240.0.11:2379, false
 ```
 
-Next: [Configure API server](02-api-server.md   ) 
+Next: [Configure API server](01-api-server.md   ) 

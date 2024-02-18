@@ -1,6 +1,6 @@
 # API server
 
-something about api server configuration
+In contrast to ETCD, we will only configure a single instance of the API server. The rationale behind this decision is that setting up multiple instances of the API server does not provide any significant insights regarding the certificates used in the Kubernetes. However, it entails maintaining more files and may confuse the reader.
 
 ## Generate certificates
 
@@ -416,4 +416,4 @@ Ensure kubectl can communicate with API server
 ```bash
 kubectl version --kubeconfig=admin.kubeconfig
 ```
-Next:  [Kubelet](03-kubelet.md)
+Next:  [Kubelet](02-kubelet.md)
