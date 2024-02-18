@@ -134,4 +134,4 @@ hello-world                         1/1     Running   0       
 nginx-deployment-5d9cbcf759-x4pk8   1/1     Running   0          9m34s   10.240.1.10   example-server   <none>           <none>
 ```
 
-Next: [Kubeproxy](06-kubeproxy.md)
+Next: [Kubeproxy](07-kubeproxy.md)

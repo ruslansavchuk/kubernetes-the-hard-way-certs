@@ -137,4 +137,4 @@ sudo systemctl status kube-controller-manager
 ...
 ```
 
-Next: [Scheduler](05-scheduler.md)
+Next: [Scheduler](06-scheduler.md)
