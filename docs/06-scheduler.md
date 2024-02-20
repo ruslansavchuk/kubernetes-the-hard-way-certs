@@ -124,7 +124,7 @@ sudo systemctl status kube-scheduler
 ```
 
 ```bash
-kubectl get pod -o wide
+kubectl get pod --kubeconfig=admin.kubeconfig
 ```
 
 Result:

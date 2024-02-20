@@ -68,10 +68,6 @@ wget -q --show-progress --https-only --timestamping \
 }
 ```
 
-# такс, от з цього місця щось іде не так
-
-
-
 ```bash
 {
 sudo mv kube-controller-manager.kubeconfig /var/lib/kubernetes/

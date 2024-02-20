@@ -1,4 +1,4 @@
 # Scheduler
 
-![image](./img/00-schema.png "Container runtime")
+![image](schema.png "Container runtime")
 *

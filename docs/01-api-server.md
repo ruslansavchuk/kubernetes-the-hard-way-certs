@@ -2,11 +2,16 @@
 
 In contrast to ETCD, we will only configure a single instance of the API server. The rationale behind this decision is that setting up multiple instances of the API server does not provide any significant insights regarding the certificates used in the Kubernetes. However, it entails maintaining more files and may confuse the reader.
 
+Before we begin, lets figure out what certificates we need to configure.
+1. Client certificate for communication for ETCD cluster (we generated this certificate on the previous step, now we need to configure api-server to use already existing certificate)
+2. Server certificate for api-server for communication with api-server clients. We will generate CA certificate, and configure api-server (and clients in future) to trust only certificates signed using out CA.
+3. Client certificate for communication with kubelet. This certificate will be signed with different CA certificate, which will be generated specially for communication with kubelet.
+
 ## Generate certificates
 
-### API-server-to-client
+We will start with the certificates for communication between api-server and clients.
+Before we can generate and sign certificates, we need to generate CA.
 
-#### Generate ca certificate
 ```bash
 {
 cat > kubernetes-ca-api-csr.json <<EOF
@@ -33,13 +38,16 @@ cfssl gencert -initca kubernetes-ca-api-csr.json | cfssljson -bare kubernetes-ca
 ```
 
 Generated files:
+
 ```
-kubernetes-ca-api-key.pem
 kubernetes-ca-api.csr
+kubernetes-ca-api-csr.json
+kubernetes-ca-api-key.pem
 kubernetes-ca-api.pem
 ```
 
-Generate signing config
+Now, we will create the configuration file for signing api-server certificates.
+
 ```bash
 cat > kubernetes-ca-api-config.json <<EOF
 {
@@ -58,7 +66,8 @@ cat > kubernetes-ca-api-config.json <<EOF
 EOF
 ```
 
-Generate certificate for communication with the clients
+And now, we can generate "api-server" server certificate for communication with clients.
+
 ```bash
 {
 cat > kubernetes-api-server-csr.json <<EOF
@@ -90,7 +99,18 @@ cfssl gencert \
 }
 ```
 
-### For communication between API server and kubelet
+Generated files:
+
+```
+kubernetes-api-server.csr
+kubernetes-api-server-csr.json
+kubernetes-api-server-key.pem
+kubernetes-api-server.pem
+```
+
+Now, we will proceed with the certificates required for communication with kubelet.
+As previously mentioned, we will use separate CA for this king of communication.
+So, we will generate CA.
 
 ```bash
 {
@@ -119,12 +139,14 @@ cfssl gencert -initca kubernetes-ca-kubelet-csr.json | cfssljson -bare kubernete
 
 Generated file:
 ```
-kubernetes-ca-kubelet-key.pem
 kubernetes-ca-kubelet.csr
+kubernetes-ca-kubelet-csr.json
+kubernetes-ca-kubelet-key.pem
 kubernetes-ca-kubelet.pem
 ```
 
-Generate signing config
+Now, create signing config, as we need to sign api-server certificate which will be used as client certificate for communication with kubelet server.
+
 ```bash
 cat > kubernetes-ca-kubelet-config.json <<EOF
 {
@@ -143,7 +165,7 @@ cat > kubernetes-ca-kubelet-config.json <<EOF
 EOF
 ```
 
-For communication with kubelet
+When signing config created, we can create api-server -> kubelet client certificate.
 
 ```bash
 {
@@ -176,7 +198,17 @@ cfssl gencert \
 }
 ```
 
-### Generate certificate for signing service account tokens
+Generated files:
+
+```
+kubernetes-kubelet-server.csr
+kubernetes-kubelet-server-csr.json
+kubernetes-kubelet-server-key.pem
+kubernetes-kubelet-server.pem
+```
+
+In addition to already mentioned certificated we need to generate several more things. 
+First of all, service account token signing certificate. (todo: we need to add reference what is it or explain)
 
 ```bash
 {
@@ -208,7 +240,16 @@ cfssl gencert \
 }
 ```
 
-### Generate certificate for admin to communicate with API server
+Generated file:
+
+```
+service-account.csr
+service-account-csr.json
+service-account-key.pem
+service-account.pem
+```
+
+Second, certificate for communication with our api-server. We will configure kubectl to uses this certificate.
 
 ```bash
 {
@@ -240,7 +281,16 @@ cfssl gencert \
 }
 ```
 
-### Generate encryption key
+Generated files:
+
+```
+admin.csr
+admin-csr.json
+admin-key.pem
+admin.pem
+```
+
+And the last one - encryption key.
 
 Kubernetes stores a variety of data including cluster state, application configurations, and secrets. Kubernetes supports the ability to [encrypt](https://kubernetes.io/docs/tasks/administer-cluster/encrypt-data) cluster data at rest.
 
@@ -272,24 +322,27 @@ EOF
 
 ## Provision the Kubernetes Control Plane
 
-Create the Kubernetes configuration directory:
+Now, when all the certificates and secrets generated, we can start configuring api-server.
+
+First of all we need to create folder where we will store kubernetes configuration files.
 
 ```bash
 sudo mkdir -p /etc/kubernetes/config
 ```
 
-```bash
-wget -q --show-progress --https-only --timestamping \
-  "https://storage.googleapis.com/kubernetes-release/release/v1.21.0/bin/linux/amd64/kube-apiserver"
-```
-Install the Kubernetes binaries:
+Next step - download and install API server binary.
 
 ```bash
 {
+  wget -q --show-progress --https-only --timestamping \
+  "https://storage.googleapis.com/kubernetes-release/release/v1.21.0/bin/linux/amd64/kube-apiserver"
+  
   chmod +x kube-apiserver
   sudo mv kube-apiserver /usr/local/bin/
 }
 ```
+
+When binaries installed, we can copy all the certificates to the proper folder.
 
 ```bash
 {
@@ -308,9 +361,7 @@ Install the Kubernetes binaries:
 }
 ```
 
-The instance internal IP address will be used to advertise the API Server to members of the cluster. Retrieve the internal IP address for the current compute instance:
-
-Create the `kube-apiserver.service` systemd unit file:
+And finally we can create systemd unit file to configue our API server service.
 
 ```bash
 {
@@ -363,6 +414,10 @@ EOF
 ```
 
 > --service-account-key-file - дуже цікава опція, потрібно для того щоб перевіряти токени які видає сам кубернетес для того щоб прокидати їх у поди для того щоб вони в подальшому могли ті токени викоритовувати (поки не особо ясно яким ca сертифікатом підписувати цей сертифікат)
+> 
+> The instance internal IP address will be used to advertise the API Server to members of the cluster. 
+
+After systemd unit file created, we need to start it.
 
 ```bash
 {
@@ -372,21 +427,40 @@ EOF
 }
 ```
 
+And check api-server service status.
+
 ```bash
 systemctl status kube-apiserver
 ```
 
-# Verify
+Output:
 
-Download kubectl binaries
-```bash
-wget -q --show-progress --https-only --timestamping \
-  https://storage.googleapis.com/kubernetes-release/release/v1.21.0/bin/linux/amd64/kubectl \
-  && chmod +x kubectl \
-  && sudo mv kubectl /usr/local/bin/
+```
+● kube-apiserver.service - Kubernetes API Server
+     Loaded: loaded (/etc/systemd/system/kube-apiserver.service; enabled; vendor preset: enabled)
+     Active: active (running) since Tue 2024-02-20 14:13:53 UTC; 19s ago
+       Docs: https://github.com/kubernetes/kubernetes
+   Main PID: 1420 (kube-apiserver)
+      Tasks: 10 (limit: 2260)
+     Memory: 364.8M
+     CGroup: /system.slice/kube-apiserver.service
+...
 ```
 
-Generate kubectl configuration file
+# Verify
+
+To verify that api-server works properly we need to download kubectl and ensure that we can communicate with api-server.
+
+```bash
+{
+wget -q --show-progress --https-only --timestamping \
+  https://storage.googleapis.com/kubernetes-release/release/v1.21.0/bin/linux/amd64/kubectl
+  chmod +x kubectl
+  sudo mv kubectl /usr/local/bin/
+}
+```
+
+Now, we need to create kubectl configuration file
 
 ```bash
 {
@@ -416,4 +490,26 @@ Ensure kubectl can communicate with API server
 ```bash
 kubectl version --kubeconfig=admin.kubeconfig
 ```
+
+Also, we will create the deployment. It will help us in the next lessons to ensure that everything works as expected.
+
+```bash
+kubectl create deployment test --image=nginx --kubeconfig=admin.kubeconfig
+```
+
+And ensure that deployment created.
+
+```
+NAME   READY   UP-TO-DATE   AVAILABLE   AGE
+test   0/1     0            0           44s
+```
+
+## Summary
+
+In this section, we configured api-server to use.
+1. Client certificate for communication for ETCD cluster. The authority of the ETCD certificates verified with the usage of etcd CA certificates.
+2. Server certificate for api-server for communication with api-server clients. This certificate signed with the usage of separate CA file, and all api-server client also need to sign their certificates using the same CA file, otherwise api-server will not access request from the client.
+3. Client certificate for communication with kubelet. This certificate signed with different CA certificate, which is generated specially for communication with kubelet.
+4. Service account token signing certificate. This certificate will be used to sign the tokens generated for service accounts.
+
 Next:  [Kubelet](02-kubelet.md)

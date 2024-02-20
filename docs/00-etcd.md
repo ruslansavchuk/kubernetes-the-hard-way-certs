@@ -4,6 +4,8 @@ In this segment, we'll establish an ETCD cluster. Our cluster will consist of 3 
 - Certificates for inter-node communication within the cluster
 - Certificates for communication between the cluster and clients
 
+![image](./img/00-etcd.png "Comminucation schema")
+
 ### Cluster configuration
 
 ETCD can operate as a single server or as a cluster. Since our objective is to explore the certificates utilized in a Kubernetes cluster, we will configure ETCD in cluster mode. This approach enables us to observe how communication between ETCD cluster nodes is secured.
@@ -429,5 +431,12 @@ Result:
 f98dc20bce6225a0, started, controller-0, https://10.240.0.10:2380, https://10.240.0.10:2379, false
 ffed16798470cab5, started, controller-1, https://10.240.0.11:2380, https://10.240.0.11:2379, false
 ```
+
+## Summary
+
+In this section, we configured the ETCD cluster with 3 nodes. 
+Each node has its certificate for communication with other nodes inside the ETCD cluster. To ensure that nodes use trusted certificates we generate certificate authority (CA certificate) and configure it on each node. 
+To secure communication between the ETCD cluster and clients, we created several certificate pairs (client and server). This communication is also configured (now only on the server side) to trust only certificates signed with the usage of a separate CA. 
+The CA for in-cluster communication and communication between ETCD cluster and client - different CAs. 
 
 Next: [Configure API server](01-api-server.md   ) 
