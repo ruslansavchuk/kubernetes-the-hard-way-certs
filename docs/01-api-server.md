@@ -499,6 +499,12 @@ kubectl create deployment test --image=nginx --kubeconfig=admin.kubeconfig
 
 And ensure that deployment created.
 
+```bash
+kubectl get deployment --kubeconfig=admin.kubeconfig
+```
+
+Output:
+
 ```
 NAME   READY   UP-TO-DATE   AVAILABLE   AGE
 test   0/1     0            0           44s

@@ -30,6 +30,15 @@ cfssl gencert \
 }
 ```
 
+Generated files:
+
+```
+kube-scheduler.csr
+kube-scheduler-csr.json
+kube-scheduler-key.pem
+kube-scheduler.pem
+```
+
 ```bash
 {
   kubectl config set-cluster kubernetes-the-hard-way \
@@ -54,12 +63,8 @@ cfssl gencert \
 ```
 
 ```bash
-wget -q --show-progress --https-only --timestamping \
-  "https://storage.googleapis.com/kubernetes-release/release/v1.21.0/bin/linux/amd64/kube-scheduler"
-```
-
-```bash
 {
+  wget -q --show-progress --https-only --timestamping "https://storage.googleapis.com/kubernetes-release/release/v1.21.0/bin/linux/amd64/kube-scheduler"
   chmod +x kube-scheduler
   sudo mv kube-scheduler /usr/local/bin/
 }
@@ -130,8 +135,8 @@ kubectl get pod --kubeconfig=admin.kubeconfig
 Result:
 
 ```
-hello-world                         1/1     Running   0          35m     10.240.1.9    example-server   <none>           <none>
-nginx-deployment-5d9cbcf759-x4pk8   1/1     Running   0          9m34s   10.240.1.10   example-server   <none>           <none>
+NAME                    READY   STATUS    RESTARTS   AGE
+test-5f6778868d-459xj   1/1     Running   0          12m
 ```
 
 Next: [Kubeproxy](07-kubeproxy.md)
