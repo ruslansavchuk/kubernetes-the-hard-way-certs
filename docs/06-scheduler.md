@@ -1,5 +1,11 @@
 # Scheduler
 
+In this section we will configure kube-scheduler to communicate with api-server using the certificate signed with the api-key CA file. and use api-server CA file to validate the server certificate.
+
+## Generate certificates
+
+On the first step, we need to generate scheduler client certificate.
+
 ```bash
 {
 cat > kube-scheduler-csr.json <<EOF
@@ -39,6 +45,10 @@ kube-scheduler-key.pem
 kube-scheduler.pem
 ```
 
+## Configure
+
+When certificates are ready, we need to create configuration file which will be used by scheduler to properly configure communication with the api-server. For this we use kubectl
+
 ```bash
 {
   kubectl config set-cluster kubernetes-the-hard-way \
@@ -62,6 +72,8 @@ kube-scheduler.pem
 }
 ```
 
+Now, we will download and install scheduler binaries
+
 ```bash
 {
   wget -q --show-progress --https-only --timestamping "https://storage.googleapis.com/kubernetes-release/release/v1.21.0/bin/linux/amd64/kube-scheduler"
@@ -70,9 +82,13 @@ kube-scheduler.pem
 }
 ```
 
+When scheduler binaries are ready, we can move all required configuration files to the proper folder
+
 ```bash
 sudo mv kube-scheduler.kubeconfig /var/lib/kubernetes/
 ```
+
+Create scheduler configuration file
 
 ```bash
 cat <<EOF | sudo tee /etc/kubernetes/config/kube-scheduler.yaml
@@ -84,6 +100,8 @@ leaderElection:
   leaderElect: true
 EOF
 ```
+
+Create systemd unit file for scheduler service
 
 ```bash
 cat <<EOF | sudo tee /etc/systemd/system/kube-scheduler.service
@@ -103,6 +121,8 @@ WantedBy=multi-user.target
 EOF
 ```
 
+Start scheduler service
+
 ```bash
 {
   sudo systemctl daemon-reload
@@ -111,9 +131,13 @@ EOF
 }
 ```
 
+And ensure if it operate as expected
+
 ```bash
 sudo systemctl status kube-scheduler
 ```
+
+Output:
 
 ```
 ● kube-scheduler.service - Kubernetes Scheduler
@@ -128,6 +152,10 @@ sudo systemctl status kube-scheduler
 ...
 ```
 
+## Verify
+
+In previuos sections we saw that pods created by controller manager are in pending state. Now, if we list the pods created in the cluster, we should see all pods in running state. That is the prove that scheduler operates as expected.
+
 ```bash
 kubectl get pod --kubeconfig=admin.kubeconfig
 ```
@@ -138,5 +166,9 @@ Result:
 NAME                    READY   STATUS    RESTARTS   AGE
 test-5f6778868d-459xj   1/1     Running   0          12m
 ```
+
+## Summary
+
+In this section, we configured scheduler to communicate with api-server. The configured scheduler uses certifiate signed by api-server CA. Also, our scheduler is configured to validate server certificate using api-server CA file.
 
 Next: [Kubeproxy](07-kubeproxy.md)

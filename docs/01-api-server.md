@@ -413,9 +413,14 @@ EOF
 }
 ```
 
-> --service-account-key-file - дуже цікава опція, потрібно для того щоб перевіряти токени які видає сам кубернетес для того щоб прокидати їх у поди для того щоб вони в подальшому могли ті токени викоритовувати (поки не особо ясно яким ca сертифікатом підписувати цей сертифікат)
-> 
-> The instance internal IP address will be used to advertise the API Server to members of the cluster. 
+> Important configuration options:
+> --client-ca-file - path to the ca certificate which will be used to validate client certificate
+> --etcd-cafile - path to the ca certificate which will be used to validate etcd server certificate
+> --etcd-certfile/keyfile - path to the certificate\key file which will be used for communication with the ETCD server (ETCD server will authorize clients using the certificate speciffied)
+> --kubelet-certificate-authority - ca certificate wich will be used to validate kubelet server certificate when api-server make requests to the kubelet
+> --kubelet-client-certificate/key - the path to the certificate file which will be used when api server when api-server make requests to the kubelet
+> --tls-(cert/private-key)-file - path to the certificate/key file which will be used by api-server when establishing connection with the clients
+> --service-account-(key/signing-key)-file - the path to the certificate file which will be used to sign/verify service accout tokens
 
 After systemd unit file created, we need to start it.
 

@@ -1,3 +1,11 @@
+# kube-proxy
+
+In this section we will configure kube-proxt to communicate with api-server using the certificate signed with the api-key CA file. and use api-server CA file to validate the server certificate.
+
+## Generate certificates
+
+On the first step, we need to generate kube-proxy client certificate.
+
 ```bash
 {
 cat > kube-proxy-csr.json <<EOF
@@ -37,6 +45,10 @@ kube-proxy-key.pem
 kube-proxy.pem
 ```
 
+## Configure
+
+When certificates are ready, we need to create configuration file which will be used by kube-proxy to properly configure communication with the api-server. For this we use kubectl
+
 ```bash
 {
   kubectl config set-cluster kubernetes-the-hard-way \
@@ -60,6 +72,8 @@ kube-proxy.pem
 }
 ```
 
+Now, we will download and install kube-proxy binaries
+
 ```bash
 {
     wget -q --show-progress --https-only --timestamping https://storage.googleapis.com/kubernetes-release/release/v1.21.0/bin/linux/amd64/kube-proxy
@@ -69,9 +83,13 @@ kube-proxy.pem
 }
 ```
 
+When kube-proxy binaries are ready, we can move all required configuration files to the proper folder
+
 ```bash
 sudo mv kube-proxy.kubeconfig /var/lib/kube-proxy/kubeconfig
 ```
+
+Create kube-proxy configuration file
 
 ```bash
 cat <<EOF | sudo tee /var/lib/kube-proxy/kube-proxy-config.yaml
@@ -83,6 +101,8 @@ mode: "iptables"
 clusterCIDR: "10.200.0.0/16"
 EOF
 ```
+
+Create systemd unit file for kube-proxy service
 
 ```bash
 cat <<EOF | sudo tee /etc/systemd/system/kube-proxy.service
@@ -100,6 +120,8 @@ WantedBy=multi-user.target
 EOF
 ```
 
+Start scheduler service
+
 ```bash
 {
     sudo systemctl daemon-reload
@@ -108,9 +130,13 @@ EOF
 }
 ```
 
+And ensure if it operate as expected
+
 ```bash
 sudo systemctl status kube-proxy
 ```
+
+Output:
 
 ```
 ● kube-proxy.service - Kubernetes Kube Proxy
@@ -124,5 +150,58 @@ sudo systemctl status kube-proxy
              └─7472 /usr/local/bin/kube-proxy --config=/var/lib/kube-proxy/kube-proxy-config.yaml
 ...
 ```
+
+## Verify
+
+The best way to ensure that kubeproxy works as expected - create service and check if it is awailable.
+
+So, lets create service
+
+```bash
+kubectl create svc clusterip test --tcp=80:80 --kubeconfig=admin.kubeconfig
+```
+
+And try to connect to the service connect to the service created
+
+```bash
+kubectl run test-connectivity --kubeconfig=admin.kubeconfig -i --rm --image=busybox --restart=Never -- wget -O - $(kubectl get svc test -o=jsonpath='{.spec.clusterIP}' --kubeconfig=admin.kubeconfig)
+```
+
+Output:
+
+```
+Connecting to 10.32.0.113 (10.32.0.113:80)
+writing to stdout
+-                    100% |********************************|   615  0:00:00 ETA
+written to stdout
+<!DOCTYPE html>
+<html>
+<head>
+<title>Welcome to nginx!</title>
+<style>
+html { color-scheme: light dark; }
+body { width: 35em; margin: 0 auto;
+font-family: Tahoma, Verdana, Arial, sans-serif; }
+</style>
+</head>
+<body>
+<h1>Welcome to nginx!</h1>
+<p>If you see this page, the nginx web server is successfully installed and
+working. Further configuration is required.</p>
+
+<p>For online documentation and support please refer to
+<a href="http://nginx.org/">nginx.org</a>.<br/>
+Commercial support is available at
+<a href="http://nginx.com/">nginx.com</a>.</p>
+
+<p><em>Thank you for using nginx.</em></p>
+</body>
+</html>
+pod "test-connectivity" deleted
+```
+
+## Summary
+
+In this section, we configured kube-proxy to communicate with api-server. The configured kube-proxy uses certifiate signed by api-server CA. Also, our scheduler is configured to validate server certificate using api-server CA file.
 
 Next: [Summary](08-conclusion.md)

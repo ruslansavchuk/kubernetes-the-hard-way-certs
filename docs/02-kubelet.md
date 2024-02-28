@@ -292,6 +292,11 @@ kubectl config use-context default --kubeconfig=kubelet.kubeconfig
 }
 ```
 
+> Note:
+> In the script above, we build configuration file where:
+> - --certificate-authority - certificate which will be used to validate api-server certificate
+> - --client-(certificate/key) - certificate/key which will be used during communication with the api-server, also used for authentication
+
 After the file successfully created, we need to distribute kubelets certificates to the proper folder
 
 ```bash
@@ -337,6 +342,10 @@ tlsCertFile: "/var/lib/kubelet/kubelet-from-api-server.pem"
 tlsPrivateKeyFile: "/var/lib/kubelet/kubelet-from-api-server-key.pem"
 EOF
 ```
+
+>Important configuration options:
+>authentication.x509.clientCAFile - the path to the ca certificate file which will be used to validate client certificate file, when specified, says kubelet that client certificate can be used to authorize the client 
+>tlsCertFile/tlsPrivateKeyFile - path to the certificate/key file which will be used by kubelet server during communication with the clients
 
 And create systemd unit file for kubelet service
 

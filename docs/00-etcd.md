@@ -406,6 +406,14 @@ EOF
 }
 ```
 
+> Important configuration options:
+> --peer-(cert/key)-file - path to the file where cert/key file for communication with other ETCD peers will be used
+> --peer-client-cert-auth - say ETCD to use peer certificate to authorize peer
+> --peer-trusted-ca-file - the path to ca certificate file which will be used to validate peer certificates
+>--(cert/key)-file  - path to the certificate/key file which will be used when communicate with clients
+>--client-cert-auth - sat ETCD to use client certificate to authorize client
+>-- trusted-ca-file - path to the ca certificate file which will be used to validate client certificates
+
 And start etcd cluster
 ```bash
 {
