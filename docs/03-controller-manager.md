@@ -121,10 +121,10 @@ WantedBy=multi-user.target
 EOF
 ```
 
-> note: 
-> service-account-private-key-file - for service account token generation
-> root-ca-file - for secret related to service account creation
-> cluster-signing-cert-file and cluster-signing-key-file - for certificate signing requests handling
+> Important configuration options: 
+> --service-account-private-key-file - the path to the certificate file which will be used for signing of the tokens generated for service accounts
+> --root-ca-file - this root certificate authority will be included in service account's token secret
+> --cluster-signing-cert-file and cluster-signing-key-file - the cerficate and key file which will be used for generation of the client certificate
 
 Start controller manager service
 
@@ -189,6 +189,6 @@ As you can see, contoller manager works as expected.
 
 ## Summary
 
-In this section, we configured contoller manager to communicate with api-server. The configured contoller manager uses certifiate signed by api-server CA. Also, our controller manager validate server certificate using api-server CA file.
+In this section, we configured contoller manager to communicate with api-server. The configured contoller manager uses certifiate signed by api-server CA. Also, our controller manager is configured to validate server certificate using api-server CA file.
 
 Next: [Scheduler](06-scheduler.md)
