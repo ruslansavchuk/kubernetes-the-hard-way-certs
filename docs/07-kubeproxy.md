@@ -203,5 +203,3 @@ pod "test-connectivity" deleted
 ## Summary
 
 In this section, we configured kube-proxy to communicate with api-server. The configured kube-proxy uses certifiate signed by api-server CA. Also, our scheduler is configured to validate server certificate using api-server CA file.
-
-Next: [Summary](08-conclusion.md)
