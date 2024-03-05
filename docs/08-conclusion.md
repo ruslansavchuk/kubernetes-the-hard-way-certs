@@ -1,4 +1,5 @@
 # Kubeadm certificates mapping
+
 ## ETCD
 etcd-cluster-to-client-server -> etcd/server
 etcd-peer -> etcd/peer
@@ -20,9 +21,3 @@ kube-controller-manager -> values from controller-manager.conf
 
 ## scheduler
 kube-scheduler -> values from scheduler.conf
-
-## kube-proxy
-
-
-![image](schema.png "Container runtime")
-*
